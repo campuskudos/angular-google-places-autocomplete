@@ -190,6 +190,8 @@ angular.module('google.places', [])
                         clearPredictions();
                     }
 
+                    const getPredictions = _.debounce((...args) => autocompleteService().getPlacePredictions(...args), 250);
+
                     function parse(viewValue) {
                         var request;
 
@@ -198,7 +200,7 @@ angular.module('google.places', [])
                         $scope.query = viewValue;
 
                         request = angular.extend({ input: viewValue }, $scope.options);
-                        autocompleteService().getPlacePredictions(request, function (predictions, status) {
+                        getPredictions(request, function (predictions, status) {
                             $scope.$apply(function () {
                                 var customPlacePredictions;
 
