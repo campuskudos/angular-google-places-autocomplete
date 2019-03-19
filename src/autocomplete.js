@@ -38,7 +38,8 @@ angular.module('google.places', [])
                     model: '=ngModel',
                     options: '=?',
                     forceSelection: '=?',
-                    customPlaces: '=?'
+                    customPlaces: '=?',
+                    getGeoDetails: '&'
                 },
                 controller: ['$scope', function ($scope) {}],
                 link: function ($scope, element, attrs, controller) {
@@ -159,6 +160,42 @@ angular.module('google.places', [])
                         });
                     }
 
+                    function pgGeocodeAdapter() {
+                        this.getDetails = function(name) {
+                            return $scope.getGeoDetails({ name })
+                                .then((res) => {
+                                    const geocode = res.geocode;
+                                    const address_components = [];
+                                    const geometry = {
+                                        location: {
+                                            lat: geocode.latitude,
+                                            lng: geocode.longitude
+                                        }
+                                    }
+                                    _.forEach( geocode.locationMetadata, (v,k) => {
+                                        switch(k) {
+                                            case 'city':
+                                                address_components.push({ long_name: v, short_name: v, types: ['locality', 'political']})
+                                                break;
+                                            case 'country':
+                                                address_components.push({ long_name: v, short_name: v, types: ['country', 'political']})
+                                                break;
+                                            case 'state':
+                                                address_components.push({ long_name: v, short_name: v, types: ['administrative_area_level_1', 'political']})
+                                                break;
+                                            case 'zipcode':
+                                                address_components.push({ long_name: v, short_name: v, types: ['postal_code']})
+                                                break;
+                                        }
+                                    })
+                                    return {
+                                        address_components,
+                                        geometry
+                                    }
+                                })
+                        };
+                    }
+
                     function select() {
                         var prediction;
 
@@ -174,17 +211,28 @@ angular.module('google.places', [])
                                 });
                             });
                         } else {
-                            placesService().getDetails({ placeId: prediction.place_id }, function (place, status) {
-                                if (status == google.maps.places.PlacesServiceStatus.OK) {
+                            pgGeocodeAdapter.getGeoDetails(prediction.description)
+                                .then((place) => {
                                     $scope.$apply(function () {
                                         $scope.model = place;
                                         $scope.$emit('g-places-autocomplete:select', place);
                                         $timeout(function () {
-                                            controller.$viewChangeListeners.forEach(function (fn) { fn(); });
+                                           controller.$viewChangeListeners.forEach(function (fn) { fn(); });
                                         });
                                     });
-                                }
-                            });
+                                }).catch( e => {
+                                    placesService().getDetails({ placeId: prediction.place_id, fields, fields: ['address_components', 'geometry']}, function (place, status) {
+                                        if (status == google.maps.places.PlacesServiceStatus.OK) {
+                                            $scope.$apply(function () {
+                                                $scope.model = place;
+                                                $scope.$emit('g-places-autocomplete:select', place);
+                                                $timeout(function () {
+                                                    controller.$viewChangeListeners.forEach(function (fn) { fn(); });
+                                                });
+                                            });
+                                        }
+                                    });
+                                })
                         }
 
                         clearPredictions();
