@@ -231,7 +231,7 @@ angular.module('google.places', [])
                         clearPredictions();
                     }
 
-                    var getPredictions = _.debounce(function(request, cb) { autocompleteService().getPlacePredictions(request, cb)}, 250);
+                    var getPredictions = _.debounce(function(request, cb) { autocompleteService().getPlacePredictions(request, cb)}, 400);
 
                     function parse(viewValue) {
                         var request;
